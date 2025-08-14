@@ -70,22 +70,55 @@
             border: none;
             text-align: center;
         }
-        .print-btn {
-            display: block;
-            width: 100%;
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn {
+            flex: 1;
             padding: 12px;
-            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 4px;
             font-size: 16px;
             cursor: pointer;
-            margin-top: 20px;
+        }
+        .add-btn {
+            background-color: #28a745;
+        }
+        .add-btn:hover {
+            background-color: #218838;
+        }
+        .print-btn {
+            background-color: #007bff;
         }
         .print-btn:hover {
             background-color: #0056b3;
         }
-        /* Invoice Styles */
+        /* Invoice List */
+        .invoice-list-section {
+            margin-top: 20px;
+        }
+        .invoice-list-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .invoice-list-table th, .invoice-list-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+        .invoice-list-table th {
+            background-color: #f2f2f2;
+        }
+        .total-invoice-list {
+            text-align: left;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        /* Invoice Styles for printing */
         .invoice-section {
             display: none;
         }
@@ -125,6 +158,9 @@
             }
             .form-section {
                 min-width: unset;
+            }
+            .btn-group {
+                flex-direction: column;
             }
         }
         /* Print-specific styles */
@@ -185,13 +221,31 @@
                 <input type="number" id="length" name="length" step="0.01">
             </div>
 
-            <div class="total-box">
-                <label for="totalCost">السعر الإجمالي ($)</label>
-                <input type="text" id="totalCost" readonly>
+            <div class="btn-group">
+                <button type="button" class="btn add-btn" onclick="addToInvoice()">إضافة إلى الفاتورة</button>
             </div>
-            
-            <button type="button" class="print-btn" onclick="generateInvoice()">إنشاء فاتورة وطباعة</button>
         </form>
+
+        <div class="invoice-list-section">
+            <h3>تفاصيل الفاتورة</h3>
+            <table class="invoice-list-table">
+                <thead>
+                    <tr>
+                        <th>البيان</th>
+                        <th>الكمية</th>
+                        <th>سعر الوحدة</th>
+                        <th>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody id="invoiceListBody">
+                    </tbody>
+            </table>
+            <div class="total-invoice-list">
+                الإجمالي الكلي: <span id="totalInvoiceListCost">0.00</span> $
+            </div>
+        </div>
+
+        <button type="button" class="print-btn" onclick="generateInvoice()">إنشاء فاتورة وطباعة</button>
     </div>
 
     <div class="invoice-section" id="invoiceSection">
@@ -219,12 +273,12 @@
                     <th>الإجمالي</th>
                 </tr>
             </thead>
-            <tbody id="invoiceItems">
+            <tbody id="printInvoiceItems">
                 </tbody>
         </table>
 
         <div class="invoice-total">
-            الإجمالي: <span id="invoiceTotalCost">0.00</span> $
+            الإجمالي الكلي: <span id="printInvoiceTotalCost">0.00</span> $
         </div>
 
         <div class="invoice-footer">
@@ -239,12 +293,13 @@
     const pvcTypeInput = document.getElementById('pvcType');
     const widthInput = document.getElementById('width');
     const lengthInput = document.getElementById('length');
-    const totalCostInput = document.getElementById('totalCost');
+    const invoiceListBody = document.getElementById('invoiceListBody');
+    const totalInvoiceListCostSpan = document.getElementById('totalInvoiceListCost');
     const clientNameInvoice = document.getElementById('clientNameInvoice');
     const invoiceDate = document.getElementById('invoiceDate');
     const invoiceNumber = document.getElementById('invoiceNumber');
-    const invoiceItems = document.getElementById('invoiceItems');
-    const invoiceTotalCost = document.getElementById('invoiceTotalCost');
+    const printInvoiceItems = document.getElementById('printInvoiceItems');
+    const printInvoiceTotalCost = document.getElementById('printInvoiceTotalCost');
     const hiddenMargin = 0.08; // 8 سنتيمتر بالمتر
 
     // قاموس لتخزين الأسعار تلقائيا
@@ -254,17 +309,20 @@
         'وسط (65)': 65,
         'ثقيل (85)': 85
     };
+    
+    let invoiceItemsArray = [];
 
-    function calculateTotal() {
+    function calculateItemTotal() {
         const selectedUnitType = unitTypeInput.value;
         const selectedPvcType = pvcTypeInput.value;
         const width = parseFloat(widthInput.value) || 0;
         const length = parseFloat(lengthInput.value) || 0;
+        
         let meterPrice = prices[selectedPvcType] || 0;
         
         // حساب المساحة مع إضافة الهامش المخفي
         const totalArea = (width + hiddenMargin) * (length + hiddenMargin);
-
+        
         // تطبيق الخصم أو الزيادة حسب نوع الوحدة والمساحة
         if (selectedUnitType === 'شباك' && totalArea > 1.40) {
             meterPrice = meterPrice * 0.95; // خصم 5%
@@ -275,54 +333,81 @@
         }
         
         const totalCost = totalArea * meterPrice;
-        totalCostInput.value = totalCost.toFixed(2);
+        
+        return {
+            unitType: selectedUnitType,
+            pvcType: selectedPvcType,
+            width: width,
+            length: length,
+            totalArea: totalArea,
+            meterPrice: meterPrice,
+            totalCost: totalCost
+        };
+    }
+
+    function addToInvoice() {
+        const item = calculateItemTotal();
+
+        if (item.totalCost > 0) {
+            invoiceItemsArray.push(item);
+            renderInvoiceList();
+            clearForm();
+        } else {
+            alert('يرجى إدخال بيانات صحيحة لإضافة العنصر.');
+        }
+    }
+
+    function renderInvoiceList() {
+        let totalCost = 0;
+        invoiceListBody.innerHTML = '';
+        invoiceItemsArray.forEach(item => {
+            const row = invoiceListBody.insertRow();
+            row.innerHTML = `
+                <td>${item.unitType} - ${item.pvcType}</td>
+                <td>${item.width.toFixed(2)} × ${item.length.toFixed(2)} متر</td>
+                <td>${item.meterPrice.toFixed(2)} $</td>
+                <td>${item.totalCost.toFixed(2)} $</td>
+            `;
+            totalCost += item.totalCost;
+        });
+        totalInvoiceListCostSpan.textContent = totalCost.toFixed(2);
+    }
+
+    function clearForm() {
+        unitTypeInput.value = '';
+        pvcTypeInput.value = '';
+        widthInput.value = '';
+        lengthInput.value = '';
     }
 
     function generateInvoice() {
-        calculateTotal();
+        if (invoiceItemsArray.length === 0) {
+            alert('يرجى إضافة عناصر إلى الفاتورة أولاً.');
+            return;
+        }
 
         const clientName = clientNameInput.value || 'غير محدد';
-        const selectedUnitType = unitTypeInput.value || 'غير محدد';
-        const selectedPvcType = pvcTypeInput.value || 'غير محدد';
-        const width = parseFloat(widthInput.value) || 0;
-        const length = parseFloat(lengthInput.value) || 0;
-        let meterPrice = prices[selectedPvcType] || 0;
-        const totalArea = width * length;
-
-        // حساب السعر بعد الخصم أو الزيادة لإظهاره في الفاتورة
-        if (selectedUnitType === 'شباك' && totalArea > 1.40) {
-            meterPrice = meterPrice * 0.95;
-        } else if (selectedUnitType === 'باب') {
-            meterPrice = meterPrice * 1.01;
-        } else if (selectedUnitType === 'وحدة الطاقة' && totalArea < 1) {
-            meterPrice = meterPrice * 1.05;
-        }
-        
-        const totalCost = parseFloat(totalCostInput.value) || 0;
-
         clientNameInvoice.textContent = clientName;
         invoiceDate.textContent = new Date().toLocaleDateString('ar-EG');
         invoiceNumber.textContent = 'INV-' + Math.floor(Math.random() * 10000);
 
-        invoiceItems.innerHTML = `
-            <tr>
-                <td>${selectedUnitType} - ${selectedPvcType}</td>
-                <td>${width.toFixed(2)} متر × ${length.toFixed(2)} متر</td>
-                <td>${meterPrice.toFixed(2)} $</td>
-                <td>${totalCost.toFixed(2)} $</td>
-            </tr>
-        `;
-
-        invoiceTotalCost.textContent = totalCost.toFixed(2);
+        printInvoiceItems.innerHTML = '';
+        let totalCost = 0;
+        invoiceItemsArray.forEach(item => {
+            const row = printInvoiceItems.insertRow();
+            row.innerHTML = `
+                <td>${item.unitType} - ${item.pvcType}</td>
+                <td>${item.width.toFixed(2)} متر × ${item.length.toFixed(2)} متر</td>
+                <td>${item.meterPrice.toFixed(2)} $</td>
+                <td>${item.totalCost.toFixed(2)} $</td>
+            `;
+            totalCost += item.totalCost;
+        });
+        printInvoiceTotalCost.textContent = totalCost.toFixed(2);
 
         window.print();
     }
 
-    // ربط الدوال بأحداث تغيير البيانات
-    unitTypeInput.addEventListener('change', calculateTotal);
-    pvcTypeInput.addEventListener('change', calculateTotal);
-    widthInput.addEventListener('input', calculateTotal);
-    lengthInput.addEventListener('input', calculateTotal);
 </script>
 
 </body>

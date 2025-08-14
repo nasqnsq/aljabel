@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة PVC - شركة الجبل</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .main-container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+        .form-section, .invoice-section {
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            flex: 1;
+        }
+        .form-section {
+            min-width: 350px;
+        }
+        h2 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], select, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .total-box {
+            background-color: #e9f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .total-box label {
+            font-size: 1.2em;
+            color: #216a21;
+        }
+        .total-box input {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #000;
+            background: none;
+            border: none;
+            text-align: center;
+        }
+        .print-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .print-btn:hover {
+            background-color: #0056b3;
+        }
+        /* Invoice Styles */
+        .invoice-section {
+            display: none;
+        }
+        .invoice-header, .invoice-footer {
+            text-align: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .invoice-table th, .invoice-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: right;
+        }
+        .invoice-table th {
+            background-color: #f2f2f2;
+        }
+        .invoice-total {
+            text-align: left;
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        /* Media Queries for Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .form-section {
+                min-width: unset;
+            }
+        }
+        /* Print-specific styles */
+        @media print {
+            body { background: #fff; padding: 0; }
+            .main-container { flex-direction: column; }
+            .form-section, .print-btn { display: none !important; }
+            .invoice-section { 
+                display: flex !important;
+                flex-direction: column; 
+                box-shadow: none; 
+                border: none;
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="form-section">
+        <h2>حساب سعر متر الـ PVC</h2>
+        <form id="pvcCalculator">
+            <div class="form-group">
+                <label for="clientName">اسم العميل</label>
+                <input type="text" id="clientName" name="clientName">
+            </div>
+
+            <div class="form-group">
+                <label for="unitType">الوحدة</label>
+                <select id="unitType" name="unitType">
+                    <option value="" selected disabled>اختر الوحدة...</option>
+                    <option value="باب">باب</option>
+                    <option value="شباك">شباك</option>
+                    <option value="وحدة الطاقة">وحدة الطاقة</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pvcType">نوع الـ PVC</label>
+                <select id="pvcType" name="pvcType">
+                    <option value="" selected disabled>اختر النوع...</option>
+                    <option value="خفيف (36)">خفيف - 36$</option>
+                    <option value="خفيف (40)">خفيف - 40$</option>
+                    <option value="وسط (60)">وسط - 60$</option>
+                    <option value="ثقيل (85)">ثقيل - 85$</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="width">العرض (متر)</label>
+                <input type="number" id="width" name="width" step="0.01">
+            </div>
+            
+            <div class="form-group">
+                <label for="length">الطول (متر)</label>
+                <input type="number" id="length" name="length" step="0.01">
+            </div>
+
+            <div class="total-box">
+                <label for="totalCost">السعر الإجمالي ($)</label>
+                <input type="text" id="totalCost" readonly>
+            </div>
+            
+            <button type="button" class="print-btn" onclick="generateInvoice()">إنشاء فاتورة وطباعة</button>
+        </form>
+    </div>
+
+    <div class="invoice-section" id="invoiceSection">
+        <div class="invoice-header">
+            <h2>شركة الجبل</h2>
+            <p>فاتورة مبيعات</p>
+        </div>
+        
+        <div class="invoice-details">
+            <div>
+                <strong>العميل:</strong> <span id="clientNameInvoice"></span><br>
+                <strong>تاريخ الفاتورة:</strong> <span id="invoiceDate"></span><br>
+            </div>
+            <div>
+                <strong>رقم الفاتورة:</strong> <span id="invoiceNumber"></span><br>
+            </div>
+        </div>
+
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>البيان</th>
+                    <th>الكمية</th>
+                    <th>سعر الوحدة</th>
+                    <th>الإجمالي</th>
+                </tr>
+            </thead>
+            <tbody id="invoiceItems">
+                </tbody>
+        </table>
+
+        <div class="invoice-total">
+            الإجمالي: <span id="invoiceTotalCost">0.00</span> $
+        </div>
+
+        <div class="invoice-footer">
+            <p>شكراً لتعاملكم معنا!</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const clientNameInput = document.getElementById('clientName');
+    const unitTypeInput = document.getElementById('unitType');
+    const pvcTypeInput = document.getElementById('pvcType');
+    const widthInput = document.getElementById('width');
+    const lengthInput = document.getElementById('length');
+    const totalCostInput = document.getElementById('totalCost');
+    const clientNameInvoice = document.getElementById('clientNameInvoice');
+    const invoiceDate = document.getElementById('invoiceDate');
+    const invoiceNumber = document.getElementById('invoiceNumber');
+    const invoiceItems = document.getElementById('invoiceItems');
+    const invoiceTotalCost = document.getElementById('invoiceTotalCost');
+    const hiddenMargin = 0.08; // 8 سنتيمتر بالمتر
+
+    // قاموس لتخزين الأسعار تلقائيا
+    const prices = {
+        'خفيف (36)': 36,
+        'خفيف (40)': 40,
+        'وسط (60)': 60,
+        'ثقيل (85)': 85
+    };
+
+    function calculateTotal() {
+        const selectedUnitType = unitTypeInput.value;
+        const selectedPvcType = pvcTypeInput.value;
+        const width = parseFloat(widthInput.value) || 0;
+        const length = parseFloat(lengthInput.value) || 0;
+        let meterPrice = prices[selectedPvcType] || 0;
+        
+        // حساب المساحة مع إضافة الهامش المخفي
+        const totalArea = (width + hiddenMargin) * (length + hiddenMargin);
+
+        // تطبيق الخصم أو الزيادة حسب نوع الوحدة والمساحة
+        if (selectedUnitType === 'شباك' && totalArea > 1.40) {
+            meterPrice = meterPrice * 0.95; // خصم 5%
+        } else if (selectedUnitType === 'باب') {
+            meterPrice = meterPrice * 1.01; // زيادة 1%
+        } else if (selectedUnitType === 'وحدة الطاقة' && totalArea < 1) {
+            meterPrice = meterPrice * 1.05; // زيادة 5%
+        }
+        
+        const totalCost = totalArea * meterPrice;
+        totalCostInput.value = totalCost.toFixed(2);
+    }
+
+    function generateInvoice() {
+        calculateTotal();
+
+        const clientName = clientNameInput.value || 'غير محدد';
+        const selectedUnitType = unitTypeInput.value || 'غير محدد';
+        const selectedPvcType = pvcTypeInput.value || 'غير محدد';
+        const width = parseFloat(widthInput.value) || 0;
+        const length = parseFloat(lengthInput.value) || 0;
+        let meterPrice = prices[selectedPvcType] || 0;
+        const totalArea = width * length;
+
+        // حساب السعر بعد الخصم أو الزيادة لإظهاره في الفاتورة
+        if (selectedUnitType === 'شباك' && totalArea > 1.40) {
+            meterPrice = meterPrice * 0.95;
+        } else if (selectedUnitType === 'باب') {
+            meterPrice = meterPrice * 1.01;
+        } else if (selectedUnitType === 'وحدة الطاقة' && totalArea < 1) {
+            meterPrice = meterPrice * 1.05;
+        }
+        
+        const totalCost = parseFloat(totalCostInput.value) || 0;
+
+        clientNameInvoice.textContent = clientName;
+        invoiceDate.textContent = new Date().toLocaleDateString('ar-EG');
+        invoiceNumber.textContent = 'INV-' + Math.floor(Math.random() * 10000);
+
+        invoiceItems.innerHTML = `
+            <tr>
+                <td>${selectedUnitType} - ${selectedPvcType}</td>
+                <td>${width.toFixed(2)} متر × ${length.toFixed(2)} متر</td>
+                <td>${meterPrice.toFixed(2)} $</td>
+                <td>${totalCost.toFixed(2)} $</td>
+            </tr>
+        `;
+
+        invoiceTotalCost.textContent = totalCost.toFixed(2);
+
+        window.print();
+    }
+
+    // ربط الدوال بأحداث تغيير البيانات
+    unitTypeInput.addEventListener('change', calculateTotal);
+    pvcTypeInput.addEventListener('change', calculateTotal);
+    widthInput.addEventListener('input', calculateTotal);
+    lengthInput.addEventListener('input', calculateTotal);
+</script>
+
+</body>
+</html>
